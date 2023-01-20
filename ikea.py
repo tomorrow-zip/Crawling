@@ -13,43 +13,50 @@ from bs4 import BeautifulSoup as bs
 import time
 import pandas as pd
 
-def set_chrome_driver():
-    chrome_options = webdriver.ChromeOptions()
-    driver = webdriver.Chrome(service=Service(ChromeDriverManager().install()), options=chrome_options)
-    return driver
+class Driver:
+    def __init__(self, url):
+        self.driver = self.set_chrome_driver_auto()
+        self.driver.get(url)
+        self.driver.implicitly_wait(3) # 1초 기다리기
 
-def set_chrome_driver_auto():
-    chromedriver_autoinstaller.install()  # Check if the current version of chromedriver exists
-                                      # and if it doesn't exist, download it automatically,
-                                      # then add chromedriver to path
-    
-    return webdriver.Chrome()
+    def set_chrome_driver_auto(self):
+        chromedriver_autoinstaller.install()
+        return webdriver.Chrome()
 
-def check_exists_by_xpath(driver, xpath):
-    try:
-        t = driver.find_element(By.XPATH, xpath)
-    except NoSuchElementException:
-        return False
-    return True
+    def check_exists_by_xpath(self, xpath):
+        try:
+            self.driver.find_element(By.XPATH, xpath)
+        except NoSuchElementException:
+            return False
+        return True
+
+    def click_by_xpath_until_end(self, xpath):
+        while (self.check_exists_by_xpath(xpath)) :   
+            btn = self.driver.find_element(By.XPATH, xpath)
+            btn.send_keys(Keys.ENTER)
+            time.sleep(1)
+
+    def get_by_class_all(self, class_name):
+        elements = self.driver.find_elements(By.CLASS_NAME, class_name)
+        return elements
+
+    def get_by_class(self, class_name):
+        element = self.driver.find_element(By.CLASS_NAME, class_name)
+        return element
+
 
 
 if __name__ == '__main__':
     # 드라이버
-    driver = set_chrome_driver_auto()
+    driver = Driver('https://www.ikea.com/kr/ko/cat/single-beds-16285/')
     
-    driver.get('https://www.ikea.com/kr/ko/cat/single-beds-16285/')
-    driver.implicitly_wait(3) # 3초 기다리기
-    
-    # 더보기 쫙
-    while (check_exists_by_xpath(driver, '/html/body/main/div/div/div[4]/div[1]/div/div[3]/a')) :   
-        nxt = driver.find_element(By.XPATH, '/html/body/main/div/div/div[4]/div[1]/div/div[3]/a')
-        nxt.send_keys(Keys.ENTER)
-        time.sleep(1)
-    time.sleep(3)
+    # 더보기 눌러서 전체 리스트 보기
+    driver.click_by_xpath_until_end('/html/body/main/div/div/div[4]/div[1]/div/div[3]/a')
+    time.sleep(1)
 
-    # 상품 리스트로 뽑아오기
-    product_list = driver.find_elements(By.CLASS_NAME, 'plp-fragment-wrapper')
-    print(f'product len : {len(product_list)}')
+    # 상품 리스트 뽑아오기
+    product_list = driver.get_by_class_all('plp-fragment-wrapper')
+    # print(f'product len : {len(product_list)}')
 
     # 각 상품 탐색
     imgs = []
@@ -60,24 +67,20 @@ if __name__ == '__main__':
     infos = []
     for product in product_list:
         # 이미지
-        image = product.find_element(By.CLASS_NAME, 'pip-image') 
-        imgs.append(image.get_attribute('src'))
+        imgs.append(product.find_element(By.CLASS_NAME, 'pip-image') .get_attribute('src'))
 
         # 제품명 <span class="pip-header-section__title--small notranslate" translate="no">GRIMSBU 그림스부 </span>
-        name = product.find_element(By.CLASS_NAME, 'pip-header-section__title--small')
-        names.append(name.text)
+        names.append(product.find_element(By.CLASS_NAME, 'pip-header-section__title--small').text)
 
         # 가격 <span class="pip-price__integer">50,000</span>
-        price = product.find_element(By.CLASS_NAME, 'pip-price__integer')
-        prices.append(price.text)
+        prices.append(product.find_element(By.CLASS_NAME, 'pip-price__integer').text)
 
         # 상품 링크 <a href="https://www.ikea.com/kr/ko/p/grimsbu-bed-frame-grey-20458757/" class="pip-product-compact__wrapper-link">
         link = product.find_element(By.CLASS_NAME, 'pip-product-compact__wrapper-link').get_attribute('href')
         links.append(link)
         
         # 사이즈 <span class="pip-header-section__description-measurement" data-ga-action="measurements_header_click" data-ga-label="90x200 cm">90x200 cm</span>
-        size = product.find_element(By.CLASS_NAME, 'pip-header-section__description-measurement')
-        sizes.append(size.text)
+        sizes.append(product.find_element(By.CLASS_NAME, 'pip-header-section__description-measurement').text)
 
         # 상품설명 <div class="pip-product-details__container">
         information = bs(requests.get(link).content, 'html.parser').select('.pip-product-details__paragraph')
