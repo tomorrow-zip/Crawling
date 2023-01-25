@@ -22,7 +22,11 @@ class Ikea:
     ]
 
     def __init__(self, idx=[0]):
-        pass
+        self.driver = Driver('https://www.google.com/')
+
+    def get_product_list(self, url):
+        self.driver.set_url(self.get_max_page_url(url))
+        return self.driver.get_by_class_all('plp-fragment-wrapper')
 
     def get_max_page_url(self, url):
         list_total_count = bs(requests.get(url).content, 'html.parser').select('.catalog-product-list__total-count')[0].text
@@ -39,9 +43,51 @@ class Ikea:
 
         return url+'?page='+str(page_number)
 
+    def get_product_data(self, product):
+        link = self.get_link(product)
+        return (self.get_image(product), self.get_title(product), self.get_price(product), link, self.get_info(link), self.get_size(link))
+
+    def get_image(self, element):
+        try:
+            return self.driver.get_by_class('pip-image', element).get_attribute('src')
+        except NoSuchElementException:
+            return None
+
+    def get_title(self, element):
+        try:
+            return self.driver.get_by_class('pip-header-section__title--small', element).text
+        except NoSuchElementException:
+            return None
+
+    def get_price(self, element):
+        try:
+            return self.driver.get_by_class('pip-price__integer', element).text
+        except NoSuchElementException:
+            return None    
+
+    def get_link(self, element):
+        try:
+            return self.driver.get_by_class('pip-product-compact__wrapper-link', element).get_attribute('href')
+        except NoSuchElementException:
+            return None
+
+    def get_info(self, link):
+        try:
+            informations = bs(requests.get(link).content, 'html.parser').select('.pip-product-details__paragraph')
+            return ' '.join(informations)
+        except Exception:
+            return None
+
+    def get_size(self, link):
+        try:
+            informations = bs(requests.get(link).content, 'html.parser').select('.pip-product-dimensions__measurement-wrapper')
+            return ' '.join(informations)
+        except Exception:
+            return None
 
     
-    def by_selenium(self, categori=None):
+    # categori : list
+    def print_list(self, categori=None):
         driver = Driver('https://www.google.com/')
         
         if categori==None:
@@ -57,53 +103,12 @@ class Ikea:
 
             
             product = product_list[0]
-            names = ['pip-image', 'pip-header-section__title--small', 'pip-price__integer', 'pip-product-compact__wrapper-link']
-            for name in names:
-                if (driver.check_exists_by_class(name, product)):
-                    # print(f'{name} is exists')
-                    if name == 'pip-product-compact__wrapper-link':
-                        link = product.find_element(By.CLASS_NAME, 'pip-product-compact__wrapper-link').get_attribute('href')
-                        link_body = bs(requests.get(link).content, 'html.parser')
-                        information = link_body.select('.pip-product-details__paragraph')
-                        measure = link_body.select('.pip-product-dimensions__measurement-wrapper')
-                        if len(information)==0:
-                            print(f'information-length is {len(information)}')
-                        if len(measure)==0:
-                            print(f'measure-length is {len(measure)}')
-                else:
-                    print(f'{name} is not exists')
+            print(self.get_product_data(product))
+            
 
             
 
 
-def return_product_info_by_selenium(product):
-    # 이미지
-    img = product.find_element(By.CLASS_NAME, 'pip-image').get_attribute('src')
-
-    # 제품명 <span class="pip-header-section__title--small notranslate" translate="no">GRIMSBU 그림스부 </span>
-    name = product.find_element(By.CLASS_NAME, 'pip-header-section__title--small').text
-
-    # 가격 <span class="pip-price__integer">50,000</span>
-    price = product.find_element(By.CLASS_NAME, 'pip-price__integer').text
-
-    # 상품 링크 <a href="https://www.ikea.com/kr/ko/p/grimsbu-bed-frame-grey-20458757/" class="pip-product-compact__wrapper-link">
-    link = product.find_element(By.CLASS_NAME, 'pip-product-compact__wrapper-link').get_attribute('href')
-    
-    # 사이즈 <span class="pip-header-section__description-measurement" data-ga-action="measurements_header_click" data-ga-label="90x200 cm">90x200 cm</span>
-    # sizes.append(product.find_element(By.CLASS_NAME, 'pip-header-section__description-measurement').text)
-
-    # 상품설명 <div class="pip-product-details__container">
-    # information = bs(requests.get(link).content, 'html.parser').select('.pip-product-details__paragraph')
-    # info = ""
-    # for info_ in information:
-    #     info += info_.text
-    # infos.append(info)
-
-    return img, name, price, link
-
-
-    
-
 if __name__ == '__main__':
     ik = Ikea()
-    ik.by_selenium()
+    ik.print_list(['https://www.ikea.com/kr/ko/cat/bar-furniture-16244/'])
