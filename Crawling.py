@@ -48,12 +48,18 @@ class Driver:
             btn.send_keys(Keys.ENTER)
             time.sleep(0.1)
 
-    def get_by_class_all(self, class_name):
-        elements = self.driver.find_elements(By.CLASS_NAME, class_name)
-        return elements
+    def get_by_class_all(self, class_name, element=None):
+        if element==None:
+            element = self.driver
+        try:
+            return self.driver.find_elements(By.CLASS_NAME, class_name)
+        except NoSuchElementException:
+            return None
 
-    def get_by_class(self, class_name):
-        element = self.driver.find_element(By.CLASS_NAME, class_name)
+    def get_by_class(self, class_name, element=None):
+        if element==None:
+            element = self.driver
+        element = element.find_element(By.CLASS_NAME, class_name)
         return element
 
     
